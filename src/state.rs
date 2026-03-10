@@ -16,6 +16,7 @@ pub struct AppState {
     pub patch: PatchState,
     pub settings: SettingsState,
     pub right_tab: RightTab,
+    pub status_message: Option<String>,
 }
 
 impl Default for AppState {
@@ -30,6 +31,7 @@ impl Default for AppState {
             patch: PatchState::default(),
             settings: SettingsState::default(),
             right_tab: RightTab::default(),
+            status_message: None,
         }
     }
 }

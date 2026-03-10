@@ -6,12 +6,32 @@ use crate::state::AppState;
 /// Render the tabbed editor panel in the center.
 pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
     if state.editor.tabs.is_empty() {
-        // Empty state
-        ui.centered_and_justified(|ui| {
+        // Empty welcome state
+        ui.add_space(ui.available_height() * 0.3);
+        ui.vertical_centered(|ui| {
             ui.label(
-                RichText::new("Open a file from the explorer\nor press Ctrl+O to open a project")
-                    .size(16.0)
-                    .color(Color32::from_rgb(100, 100, 100)),
+                RichText::new("⚡")
+                    .size(48.0)
+                    .color(Color32::from_rgb(60, 120, 200)),
+            );
+            ui.add_space(12.0);
+            ui.label(
+                RichText::new("DevOS")
+                    .size(24.0)
+                    .strong()
+                    .color(Color32::from_rgb(100, 160, 240)),
+            );
+            ui.add_space(8.0);
+            ui.label(
+                RichText::new("Click a file in the explorer to start editing")
+                    .size(13.0)
+                    .color(Color32::from_rgb(100, 100, 110)),
+            );
+            ui.add_space(4.0);
+            ui.label(
+                RichText::new("Ctrl+S  Save  │  Ctrl+F  Search  │  Ctrl+`  Terminal")
+                    .size(11.0)
+                    .color(Color32::from_rgb(70, 70, 80)),
             );
         });
         return;

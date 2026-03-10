@@ -66,7 +66,8 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
                 .clicked()
             {
                 if let Some(folder) = rfd::FileDialog::new().pick_folder() {
-                    let tree = file_manager::read_dir_tree(&folder, 8);
+                    let mut tree = file_manager::read_dir_tree(&folder, 8);
+                    crate::ui::file_explorer::expand_first_level(&mut tree);
                     state.explorer.tree = tree;
 
                     // Update recent projects
@@ -111,7 +112,8 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
                                 .map(|n| n.to_string_lossy().to_string())
                                 .unwrap_or_else(|| p.display().to_string());
                             if ui.selectable_label(false, &label).clicked() {
-                                let tree = file_manager::read_dir_tree(p, 8);
+                                let mut tree = file_manager::read_dir_tree(p, 8);
+                                crate::ui::file_explorer::expand_first_level(&mut tree);
                                 state.explorer.tree = tree;
                                 state.project.root = Some(p.clone());
                             }
