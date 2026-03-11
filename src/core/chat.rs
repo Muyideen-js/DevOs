@@ -1,6 +1,6 @@
 
 /// Build the prompt payload for Ollama, including selected file contexts.
-fn build_prompt(
+pub fn build_prompt(
     user_message: &str,
     context_files: &[(String, String)], // (filename, content)
     terminal_output: Option<&str>,

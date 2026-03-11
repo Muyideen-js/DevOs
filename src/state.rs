@@ -104,6 +104,8 @@ pub struct TerminalState {
     pub command_history: Vec<String>,
     pub history_index: Option<usize>,
     pub running_child: Option<Arc<Mutex<Child>>>,
+    pub running_output: Option<Arc<Mutex<String>>>,
+    pub is_running: Option<Arc<Mutex<bool>>>,
     pub show: bool,
     pub scroll_to_bottom: bool,
 }
@@ -116,6 +118,8 @@ impl Default for TerminalState {
             command_history: Vec::new(),
             history_index: None,
             running_child: None,
+            running_output: None,
+            is_running: None,
             show: true,
             scroll_to_bottom: false,
         }
@@ -143,6 +147,9 @@ pub struct ChatState {
     pub include_terminal_output: bool,
     pub waiting_for_response: bool,
     pub last_error: Option<String>,
+    // Channel for async thread to return result
+    #[allow(clippy::type_complexity)]
+    pub pending_response: Option<Arc<Mutex<Option<Result<String, String>>>>>,
 }
 
 // ── Patch ──────────────────────────────────────────────────────
