@@ -6,65 +6,65 @@ use crate::core::{file_manager, project};
 /// Render the top bar with project name, open button, and settings.
 pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing = Vec2::new(8.0, 0.0);
+        ui.spacing_mut().item_spacing = Vec2::new(10.0, 0.0);
 
         // App logo / name
         ui.label(
-            RichText::new("⚡ DevOS")
-                .strong()
+            RichText::new("⚡")
                 .size(18.0)
-                .color(Color32::from_rgb(100, 180, 255)),
+                .color(Color32::from_rgb(80, 150, 240)),
+        );
+        ui.label(
+            RichText::new("DevOS")
+                .strong()
+                .size(16.0)
+                .color(Color32::from_rgb(200, 210, 230)),
         );
 
-        ui.separator();
+        // Thin separator
+        ui.add_space(2.0);
+        ui.label(
+            RichText::new("│")
+                .size(16.0)
+                .color(Color32::from_rgb(45, 48, 58)),
+        );
+        ui.add_space(2.0);
 
         // Current project path
         if let Some(ref root) = state.project.root {
             let display = root.display().to_string();
-            let short = if display.len() > 50 {
-                format!("...{}", &display[display.len() - 47..])
+            let short = if display.len() > 45 {
+                format!("...{}", &display[display.len() - 42..])
             } else {
                 display
             };
             ui.label(
-                RichText::new(format!("📁 {}", short))
-                    .size(13.0)
-                    .color(Color32::from_rgb(180, 180, 180)),
-            );
-        } else {
-            ui.label(
-                RichText::new("No project open")
-                    .italics()
-                    .size(13.0)
-                    .color(Color32::from_rgb(120, 120, 120)),
+                RichText::new(&short)
+                    .size(12.0)
+                    .color(Color32::from_rgb(130, 140, 155)),
             );
         }
 
-        // Spacer
+        // Right side buttons
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.spacing_mut().item_spacing = Vec2::new(4.0, 0.0);
+
             // Settings button
-            if ui
-                .button(RichText::new("⚙ Settings").size(13.0))
-                .clicked()
-            {
+            let settings_btn = styled_topbar_btn(ui, "⚙", "Settings");
+            if settings_btn.clicked() {
                 state.settings.show_settings = !state.settings.show_settings;
             }
 
             // Terminal toggle
-            let term_label = if state.terminal.show {
-                "▼ Terminal"
-            } else {
-                "▲ Terminal"
-            };
-            if ui.button(RichText::new(term_label).size(13.0)).clicked() {
+            let term_icon = if state.terminal.show { "▼" } else { "▶" };
+            let term_btn = styled_topbar_btn(ui, term_icon, "Terminal");
+            if term_btn.clicked() {
                 state.terminal.show = !state.terminal.show;
             }
 
             // Open Project button
-            if ui
-                .button(RichText::new("📂 Open Project").size(13.0))
-                .clicked()
-            {
+            let open_btn = styled_topbar_btn_accent(ui, "📂", "Open");
+            if open_btn.clicked() {
                 if let Some(folder) = rfd::FileDialog::new().pick_folder() {
                     let mut tree = file_manager::read_dir_tree(&folder, 8);
                     crate::ui::file_explorer::expand_first_level(&mut tree);
@@ -102,8 +102,8 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
             // Recent projects dropdown
             if !state.project.recent.is_empty() {
                 egui::ComboBox::from_id_salt("recent_projects")
-                    .selected_text(RichText::new("Recent").size(13.0))
-                    .width(160.0)
+                    .selected_text(RichText::new("Recent").size(11.5).color(Color32::from_rgb(160, 165, 175)))
+                    .width(130.0)
                     .show_ui(ui, |ui| {
                         let recent_clone = state.project.recent.clone();
                         for p in &recent_clone {
@@ -122,4 +122,34 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
             }
         });
     });
+}
+
+// ── Styled Buttons ─────────────────────────────────────────────
+
+fn styled_topbar_btn(ui: &mut egui::Ui, icon: &str, label: &str) -> egui::Response {
+    let btn_text = format!("{} {}", icon, label);
+    let btn = egui::Button::new(
+        RichText::new(btn_text)
+            .size(11.5)
+            .color(Color32::from_rgb(170, 178, 192)),
+    )
+    .fill(Color32::from_rgb(32, 34, 42))
+    .stroke(egui::Stroke::new(1.0, Color32::from_rgb(50, 52, 62)))
+    .corner_radius(4);
+
+    ui.add(btn)
+}
+
+fn styled_topbar_btn_accent(ui: &mut egui::Ui, icon: &str, label: &str) -> egui::Response {
+    let btn_text = format!("{} {}", icon, label);
+    let btn = egui::Button::new(
+        RichText::new(btn_text)
+            .size(11.5)
+            .color(Color32::from_rgb(200, 215, 240)),
+    )
+    .fill(Color32::from_rgb(35, 55, 90))
+    .stroke(egui::Stroke::new(1.0, Color32::from_rgb(60, 90, 140)))
+    .corner_radius(4);
+
+    ui.add(btn)
 }

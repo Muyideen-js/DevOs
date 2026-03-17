@@ -7,6 +7,7 @@ description = "DevOS — A local developer workspace with editor, terminal, git,
 [dependencies]
 eframe = "0.31"
 egui = "0.31"
+egui_extras = { version = "0.31", features = ["syntect"] }
 tokio = { version = "1", features = ["full"] }
 git2 = "0.19"
 reqwest = { version = "0.12", features = ["json", "blocking"] }

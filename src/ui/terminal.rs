@@ -10,18 +10,25 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
     ui.horizontal(|ui| {
         ui.label(
             RichText::new("TERMINAL")
-                .size(11.0)
+                .size(10.5)
                 .strong()
-                .color(Color32::from_rgb(140, 140, 140)),
+                .color(Color32::from_rgb(140, 155, 175)),
         );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.small_button("Clear").clicked() {
+            let clear_btn = egui::Button::new(
+                RichText::new("Clear")
+                    .size(10.5)
+                    .color(Color32::from_rgb(140, 145, 155)),
+            )
+            .fill(Color32::TRANSPARENT)
+            .stroke(egui::Stroke::NONE);
+            if ui.add(clear_btn).clicked() {
                 state.terminal.entries.clear();
             }
         });
     });
 
-    ui.separator();
+    ui.add_space(2.0);
 
     // -- Poll async terminal output --
     let mut finished = false;
@@ -128,18 +135,27 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
 
         let has_running = state.terminal.running_child.is_some();
 
-        if ui
-            .add_enabled(!has_running, egui::Button::new(RichText::new("▶ Run").size(12.0)))
-            .clicked()
-        {
+        let run_btn = egui::Button::new(
+            RichText::new("▶ Run").size(11.0).color(Color32::from_rgb(80, 200, 130)),
+        )
+        .fill(Color32::from_rgb(25, 45, 35))
+        .stroke(egui::Stroke::new(1.0, Color32::from_rgb(40, 70, 50)))
+        .corner_radius(3);
+
+        if ui.add_enabled(!has_running, run_btn).clicked() {
             execute_command(state);
             response.request_focus();
         }
 
         // Stop button
-        if ui
-            .add_enabled(has_running, egui::Button::new(RichText::new("⬛ Stop").size(12.0)))
-            .clicked()
+        let stop_btn = egui::Button::new(
+            RichText::new("⬛ Stop").size(11.0).color(Color32::from_rgb(240, 100, 100)),
+        )
+        .fill(Color32::from_rgb(50, 25, 25))
+        .stroke(egui::Stroke::new(1.0, Color32::from_rgb(70, 35, 35)))
+        .corner_radius(3);
+
+        if ui.add_enabled(has_running, stop_btn).clicked()
         {
             if let Some(ref child) = state.terminal.running_child {
                 let _ = term_core::kill_process(child);
