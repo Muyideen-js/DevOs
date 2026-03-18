@@ -77,7 +77,8 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
                     );
                     let _ = project::save_recent_projects(&state.project.recent);
 
-                    state.project.root = Some(folder);
+                    state.project.root = Some(folder.clone());
+                    state.project.index = crate::core::indexer::build_project_index(&folder);
 
                     // Reset git state
                     state.git.is_repo = false;
@@ -116,6 +117,7 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
                                 crate::ui::file_explorer::expand_first_level(&mut tree);
                                 state.explorer.tree = tree;
                                 state.project.root = Some(p.clone());
+                                state.project.index = crate::core::indexer::build_project_index(p);
                             }
                         }
                     });

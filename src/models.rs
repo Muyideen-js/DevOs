@@ -20,6 +20,10 @@ pub struct EditorTab {
     pub content: String,
     pub original: String,
     pub scroll_offset: f32,
+    pub ghost_text: Option<String>,
+    #[allow(clippy::type_complexity)]
+    pub pending_completion: Option<std::sync::Arc<std::sync::Mutex<Option<String>>>>,
+    pub last_content_change: Option<std::time::Instant>,
 }
 
 impl EditorTab {

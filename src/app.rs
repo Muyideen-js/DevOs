@@ -18,6 +18,8 @@ impl DevOsApp {
         let mut state = AppState::default();
         state.project.recent = recent;
 
+        crate::core::logger::info("DevOS starting up...");
+
         // Optionally restore last project
         if let Some(last) = state.project.recent.first().cloned() {
             if last.exists() {
@@ -25,6 +27,7 @@ impl DevOsApp {
                 crate::ui::file_explorer::expand_first_level(&mut tree);
                 state.explorer.tree = tree;
                 state.project.root = Some(last.clone());
+                state.project.index = crate::core::indexer::build_project_index(&last);
 
                 // Check git
                 if let Some(repo) = crate::core::git::open_repo(&last) {
@@ -143,6 +146,9 @@ impl eframe::App for DevOsApp {
             .show(ctx, |ui| {
                 ui::editor::render(ui, &mut self.state);
             });
+
+        // ── Overlays: Command Palette ──
+        ui::command_palette::render(ctx, &mut self.state);
     }
 }
 
@@ -203,6 +209,12 @@ fn handle_shortcuts(ctx: &egui::Context, state: &mut AppState) {
         // Ctrl+` → Toggle terminal
         if i.modifiers.ctrl && i.key_pressed(egui::Key::Backtick) {
             state.terminal.show = !state.terminal.show;
+        }
+
+        // Ctrl+Shift+P → Command Palette
+        if i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::P) {
+            state.command_palette.show = true;
+            state.command_palette.query.clear();
         }
     });
 }
