@@ -18,6 +18,11 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
     );
     ui.add_space(4.0);
 
+    if state.chat.auto_send && !state.chat.waiting_for_response {
+        state.chat.auto_send = false;
+        send_message(state);
+    }
+
     // Context file selector
     render_context_selector(ui, state);
 
@@ -363,11 +368,51 @@ fn send_message(state: &mut AppState) {
         }
     }
 
+    // Smart Context Auto-include from ProjectIndex
+    let words: std::collections::HashSet<&str> = input
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .filter(|w| w.len() > 2)
+        .collect();
+
+    for (path, file_idx) in &state.project.index {
+        let mut matched = false;
+        
+        for func in &file_idx.functions {
+            if words.contains(func.as_str()) { matched = true; break; }
+        }
+        if !matched {
+            for st in &file_idx.structs {
+                if words.contains(st.as_str()) { matched = true; break; }
+            }
+        }
+        if !matched {
+            for cls in &file_idx.classes {
+                if words.contains(cls.as_str()) { matched = true; break; }
+            }
+        }
+
+        if matched {
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            
+            // Add if not already manually selected
+            if !context_files.iter().any(|(n, _)| n == &name) {
+                if let Ok(content) = file_manager::read_file(path) {
+                    context_files.push((format!("{} (Auto-Included)", name), content));
+                }
+            }
+        }
+    }
+
     let terminal_output = if state.chat.include_terminal_output {
         state.terminal.entries.last().map(|e| e.output.clone())
     } else {
         None
     };
+
+    crate::core::logger::info(&format!("Sending AI completion request for prompt: {}...", &input.chars().take(50).collect::<String>()));
 
     let endpoint = state.settings.ollama_endpoint.clone();
     let model = state.settings.ollama_model.clone();
@@ -405,11 +450,16 @@ fn send_message(state: &mut AppState) {
                 let status = response.status();
                 if let Ok(json) = response.json::<serde_json::Value>() {
                     if let Some(err_msg) = json.get("error").and_then(|e| e.as_str()) {
+                        crate::core::logger::error(&format!("Ollama error: {}", err_msg));
                         return Err(format!("{}", err_msg));
                     }
                 }
-                return Err(format!("Ollama returned status {}", status));
+                let err_str = format!("Ollama returned status {}", status);
+                crate::core::logger::error(&err_str);
+                return Err(err_str);
             }
+
+            crate::core::logger::info("Received AI completion response successfully.");
 
             let json: serde_json::Value = response
                 .json()

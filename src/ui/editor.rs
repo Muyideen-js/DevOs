@@ -1,5 +1,8 @@
 use egui::{self, Color32, RichText, TextEdit, Vec2};
 use egui_extras::syntax_highlighting::{self, CodeTheme};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use crate::core::file_manager;
 use crate::state::AppState;
@@ -190,6 +193,7 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
                         let tab = &mut state.editor.tabs[active];
                         let lang_str = lang.to_string();
 
+                        let ghost_text_clone = tab.ghost_text.clone();
                         let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
                             let mut job = syntax_highlighting::highlight(
                                 ui.ctx(),
@@ -198,6 +202,20 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
                                 text,
                                 &lang_str,
                             );
+                            
+                            if let Some(ghost) = &ghost_text_clone {
+                                job.append(
+                                    ghost,
+                                    0.0,
+                                    egui::TextFormat {
+                                        color: Color32::from_rgb(100, 105, 115),
+                                        font_id: egui::FontId::monospace(14.0),
+                                        italics: true,
+                                        ..Default::default()
+                                    },
+                                );
+                            }
+
                             job.wrap.max_width = wrap_width;
                             ui.fonts(|f| f.layout_job(job))
                         };
@@ -210,7 +228,112 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
                             .lock_focus(true)
                             .layouter(&mut layouter);
 
-                        ui.add(text_edit);
+                        let response = ui.add(text_edit);
+                        
+                        // Handle Autocomplete interactions
+                        if response.changed() {
+                            tab.last_content_change = Some(Instant::now());
+                            tab.ghost_text = None;
+                            tab.pending_completion = None;
+                        }
+
+                        // Accept ghost text on Tab
+                        if let Some(ghost) = &tab.ghost_text {
+                            if response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Tab)) {
+                                // Strip the tab character inserted by TextEdit
+                                if tab.content.ends_with('\t') {
+                                    tab.content.pop();
+                                }
+                                tab.content.push_str(ghost);
+                                tab.ghost_text = None;
+                                tab.pending_completion = None;
+                            }
+                        }
+
+                        // Trigger Autocomplete
+                        if !response.changed() && tab.ghost_text.is_none() && tab.pending_completion.is_none() {
+                            if let Some(last_change) = tab.last_content_change {
+                                if last_change.elapsed() > Duration::from_millis(1500) && !tab.content.trim().is_empty() {
+                                    // Spawn request to Ollama
+                                    let endpoint = state.settings.ollama_endpoint.clone();
+                                    let model = state.settings.ollama_model.clone();
+                                    
+                                    // Prepare prompt - give it the last 1500 chars 
+                                    let text_len = tab.content.len();
+                                    let start = text_len.saturating_sub(1500);
+                                    let prompt = format!("Complete the following code. Output only the exact next few lines of code that should follow. Do not include markdown blocks or explanation. Code:\n{}", &tab.content[start..]);
+
+                                    let result_arc: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+                                    tab.pending_completion = Some(result_arc.clone());
+                                    let ctx_clone = ui.ctx().clone();
+
+                                    thread::spawn(move || {
+                                        let url = format!("{}/api/generate", endpoint.trim_end_matches('/'));
+                                        let body = serde_json::json!({
+                                            "model": model,
+                                            "prompt": prompt,
+                                            "stream": false,
+                                            "options": {
+                                                "temperature": 0.2,
+                                                "num_predict": 50,
+                                                "stop": ["\n\n"]
+                                            }
+                                        });
+
+                                        let client = reqwest::blocking::Client::builder()
+                                            .timeout(Duration::from_secs(5))
+                                            .build().unwrap_or_default();
+
+                                        if let Ok(resp) = client.post(&url).json(&body).send() {
+                                            if let Ok(json) = resp.json::<serde_json::Value>() {
+                                                if let Some(text) = json["response"].as_str() {
+                                                    let clean = text.trim_start_matches('\n').replace("```", "");
+                                                    if !clean.trim().is_empty() {
+                                                        if let Ok(mut arc) = result_arc.lock() {
+                                                            *arc = Some(clean);
+                                                            ctx_clone.request_repaint();
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                        }
+
+                        // Poll Autocomplete Result
+                        if let Some(pending) = &tab.pending_completion {
+                            if let Ok(mut arc) = pending.try_lock() {
+                                if let Some(text) = arc.take() {
+                                    tab.ghost_text = Some(text);
+                                }
+                            }
+                        }
+                        
+                        // Keep track if user clicked explain
+                        let mut explain_clicked = false;
+                        response.context_menu(|ui| {
+                            if ui.button(RichText::new("🧠 Explain File with AI").size(12.0)).clicked() {
+                                explain_clicked = true;
+                                ui.close_menu();
+                            }
+                        });
+
+                        if explain_clicked {
+                            state.right_tab = crate::models::RightTab::Chat;
+                            state.chat.input = format!("Please explain the code in `{}`. What does it do and how does it work?", tab.label);
+                            // Ensure the file is selected in context
+                            let path = tab.path.clone();
+                            if !state.chat.context_files.iter().any(|(p, _)| p == &path) {
+                                state.chat.context_files.push((path.clone(), true));
+                            } else {
+                                if let Some(entry) = state.chat.context_files.iter_mut().find(|(p, _)| p == &path) {
+                                    entry.1 = true;
+                                }
+                            }
+                            state.chat.auto_send = true;
+                        }
                     });
                 });
         }

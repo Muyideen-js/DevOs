@@ -91,6 +91,24 @@ pub fn render(ui: &mut egui::Ui, state: &mut AppState) {
                             .size(12.0)
                             .color(output_color),
                     );
+
+                    let out_lower = entry.output.to_lowercase();
+                    if out_lower.contains("error:") || out_lower.contains("error[") || out_lower.contains("panicked") {
+                        ui.add_space(4.0);
+                        let fix_btn = egui::Button::new(
+                            RichText::new("🔧 Fix with AI").size(11.0).color(Color32::from_rgb(200, 220, 255)),
+                        )
+                        .fill(Color32::from_rgb(40, 60, 100))
+                        .stroke(egui::Stroke::new(1.0, Color32::from_rgb(60, 100, 160)))
+                        .corner_radius(4);
+
+                        if ui.add(fix_btn).clicked() {
+                            state.right_tab = crate::models::RightTab::Chat;
+                            state.chat.include_terminal_output = true;
+                            state.chat.input = format!("Fix this error from the terminal for command `{}`:\n\n```\n{}\n```", entry.command, entry.output);
+                            state.chat.auto_send = true;
+                        }
+                    }
                 }
 
                 if entry.running {
@@ -193,6 +211,8 @@ fn execute_command(state: &mut AppState) {
     if cmd.is_empty() {
         return;
     }
+
+    crate::core::logger::info(&format!("Executing terminal command: {}", cmd));
     
     // Prevent starting multiple commands if one is already running
     if state.terminal.running_child.is_some() {

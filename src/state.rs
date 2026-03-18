@@ -17,6 +17,7 @@ pub struct AppState {
     pub settings: SettingsState,
     pub right_tab: RightTab,
     pub status_message: Option<String>,
+    pub command_palette: CommandPaletteState,
 }
 
 impl Default for AppState {
@@ -32,6 +33,7 @@ impl Default for AppState {
             settings: SettingsState::default(),
             right_tab: RightTab::default(),
             status_message: None,
+            command_palette: CommandPaletteState::default(),
         }
     }
 }
@@ -42,6 +44,7 @@ impl Default for AppState {
 pub struct ProjectState {
     pub root: Option<PathBuf>,
     pub recent: Vec<PathBuf>,
+    pub index: crate::core::indexer::ProjectIndex,
 }
 
 // ── Explorer ───────────────────────────────────────────────────
@@ -78,6 +81,9 @@ impl EditorState {
             original: content.clone(),
             content,
             scroll_offset: 0.0,
+            ghost_text: None,
+            pending_completion: None,
+            last_content_change: None,
         });
         self.active_tab = Some(self.tabs.len() - 1);
     }
@@ -146,6 +152,7 @@ pub struct ChatState {
     pub context_files: Vec<(PathBuf, bool)>, // (path, selected)
     pub include_terminal_output: bool,
     pub waiting_for_response: bool,
+    pub auto_send: bool,
     pub last_error: Option<String>,
     // Channel for async thread to return result
     #[allow(clippy::type_complexity)]
@@ -177,6 +184,24 @@ impl Default for SettingsState {
             ollama_model: "llama3.1:8b".to_string(),
             show_settings: false,
             connection_ok: None,
+        }
+    }
+}
+
+// ── Command Palette ────────────────────────────────────────────
+
+pub struct CommandPaletteState {
+    pub show: bool,
+    pub query: String,
+    pub selected_index: usize,
+}
+
+impl Default for CommandPaletteState {
+    fn default() -> Self {
+        Self {
+            show: false,
+            query: String::new(),
+            selected_index: 0,
         }
     }
 }

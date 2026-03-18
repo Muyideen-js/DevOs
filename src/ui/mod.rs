@@ -6,3 +6,4 @@ pub mod git_panel;
 pub mod chat_panel;
 pub mod patch_view;
 pub mod settings;
+pub mod command_palette;
